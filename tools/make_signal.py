@@ -42,7 +42,7 @@ def _mix(data, len_time):
     mix_data = np.zeros([5, lens])
     print(data.shape)
     for i in range(lens):
-        mix_data[0, i] = i * dt
+        mix_data[0, i] = int(i * dt)
     for i in range(len(data)):
         mix_data[1, i + start_time] = data[i]
     for i in range(len(data)):
