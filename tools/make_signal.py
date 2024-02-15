@@ -6,9 +6,7 @@
 @Purpose ：
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.signal import chirp
+
 from tools.tool import *
 
 
@@ -42,7 +40,7 @@ def _mix(data, len_time):
     mix_data = np.zeros([5, lens])
     print(data.shape)
     for i in range(lens):
-        mix_data[0, i] = int(i * dt)
+        mix_data[0, i] = (i + 1) * dt
     for i in range(len(data)):
         mix_data[1, i + start_time] = data[i]
     for i in range(len(data)):
@@ -67,4 +65,4 @@ if __name__ == '__main__':
     plt.plot(new_data[2])
     plt.show()
 
-    write_new_signal(new_data[1:], new_data[0], f'..//datas//chirp_{f0}_{f1}_{t1}_{800}.dat')
+    write_new_signal(new_data[1:], new_data[0], f'..//datas//chirp_{f0}_{f1}_{t1}_{mix}.dat')
