@@ -6,6 +6,8 @@
 @Purpose ：
 """
 
+from main import *
+
 
 def main():
     train_iter, dev_iter, test_iter = get_dataset()

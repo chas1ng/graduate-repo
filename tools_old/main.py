@@ -32,9 +32,10 @@ def get_test_dataset():
 
     train = DataLoader(TransDataset(train), batch_size=len(train))
     dev = DataLoader(TransDataset(dev), batch_size=len(dev))
-    test =DataLoader(TransDataset(test), batch_size=len(test))
+    test = DataLoader(TransDataset(test), batch_size=len(test))
 
     return train, dev, test
+
 
 def get_CFD_data(path):
     outs = []
@@ -48,6 +49,7 @@ def get_CFD_data(path):
     outs = np.array(outs).astype(np.float32)
     print(f'get {path} data shape is ', outs.shape)
     return outs
+
 
 def get_one(path):
     outs = []
@@ -65,9 +67,11 @@ def get_one(path):
     return outs
     # return DataLoader(TransDataset(outs), batch_size=config['batch_size'], shuffle=config['shuffle'], drop_last=True)
 
+
 def get_Zscore():
     moves, forces = np.load(f"datas//dataset//{config['train_path'][0]}.npy")
     return moves.mean(), moves.std(), forces.mean(), forces.std()
+
 
 def load_model():
     use_model = config['use_model']
@@ -166,7 +170,6 @@ def start_test(model, train_iter, dev_iter, test_iter, Zscore):
     t_outs = un_force(outs)
     # 临时
     for i in range(80, 121):
-
         plt.figure(figsize=(12, 6))
         plt.title(f'Point: {i}')
         # plt.plot(inputs[:, -1, 0].detach(), label='m1')
@@ -181,10 +184,12 @@ def start_test(model, train_iter, dev_iter, test_iter, Zscore):
         plt.legend()
         plt.show()
 
+
 def trans_force(data):
     for i in range(121):
         data[:, i] = (data[:, i] - Zscore[i][0]) / Zscore[i][1]
     return data
+
 
 def un_force(data):
     print(data.shape)
@@ -193,12 +198,11 @@ def un_force(data):
         print(Zscore[i][1], Zscore[i][0])
     return data
 
+
 @print_run_time
 def main():
-
     train_iter, dev_iter, test_iter = get_train_dataset()
     train_data, dev_data, test_data = get_test_dataset()
-
 
     # print(f'Zscore: {Zscore}')
     # define_dict()
@@ -217,4 +221,3 @@ if __name__ == '__main__':
     Zscore = np.load('datas//static//Z_source.npy')
     config = get_config('datas//Config//config.yml')
     main()
-

@@ -8,6 +8,7 @@ Purpose：
 """
 from torch.utils.data import Dataset
 
+
 class TransDataset(Dataset):
 
     def __init__(self, data):

@@ -20,6 +20,7 @@ data_1 = np.load('..//datas//dataset//yjc-1-17-rand-chirp-%10.npy')
 
 point = 90
 
+
 def normal_(data: numpy.ndarray):
     move_m, move_s = data[0].mean(), data[0].std()
     forc_m, forc_s = data[1].mean(), data[1].std()
@@ -27,12 +28,12 @@ def normal_(data: numpy.ndarray):
     data[1] = (data[1] - forc_m) / forc_s
     return data
 
+
 # data_1E_base = normal_(data_1E_base)
 # data_1E_rand = normal_(data_1E_rand)
 # data_1E_chir = normal_(data_1E_chir)
 # data_1E_x_ra = normal_(data_1E_x_ra)
 data_1_t = normal_(data_1)
-
 
 plt.figure(figsize=(16, 8))
 plt.title(str(point) + ' move')
@@ -71,4 +72,3 @@ plt.show()
 # np.save(f'..//datas//dataset//yjc-1_2_donya_5100_0.1_1e-4_2.npy', new_data_2)
 # np.save(f'..//datas//dataset//yjc-1_2_donya_5100_0.1_1e-4_3.npy', new_data_3)
 # np.save(f'..//datas//dataset//yjc-1_2_donya_5100_0.1_1e-4_4.npy', new_data_4)
-
