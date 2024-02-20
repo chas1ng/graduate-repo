@@ -7,6 +7,8 @@
 """
 
 import os
+import shutil
+
 import yaml
 import time
 import numpy as np
@@ -38,8 +40,12 @@ def get_config(path):
 
 
 config = get_config('..//datas//config.yml')
+if not config['Pod']:
+    config['input_size'] = 121
 Zscore = np.load(f"{config['project_path']}datas//static//Z_source.npy")
 comp = np.load(f"{config['project_path']}datas//static//move_comp.npy")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
 
 """
 数据部分：
@@ -79,8 +85,10 @@ def trans_numpy_data(path, is_part=True, is_ouhe=False):
         for i in range(4):
             move = move_data[use_len * i:use_len * (i + 1) - 100]
             force = force_data[use_len * i:use_len * (i + 1) - 100]
+            weight = np.zeros([1, 121])
             for j in range(len(move) - move_len - force_len):
-                outs.append(np.concatenate([move[j + force_len:j + lens], force[j + move_len: j + lens + 1]]))
+                outs.append(np.concatenate(
+                    [move[j + force_len:j + lens], force[j + move_len: j + lens + 1], weight + 1 / (i + 1)]))
 
         [outs.insert(0, outs[0]) for i in range(20)]
         outs = np.array(outs).astype(np.float32)
@@ -89,7 +97,14 @@ def trans_numpy_data(path, is_part=True, is_ouhe=False):
         # plt.plot(outs[:, -1, 90])
         # plt.show()
         return outs
-
+    elif is_ouhe:
+        weight = np.zeros([1, 121])
+        for i in range(len(move_data) - move_len - force_len):
+            outs.append(
+                np.concatenate([move_data[i + force_len:i + lens], force_data[i + move_len: i + lens + 1], weight]))
+        outs = np.array(outs).astype(np.float32)
+        print(f'get {path} data shape is ', outs.shape)
+        return outs
     for i in range(len(move_data) - move_len - force_len):
         outs.append(np.concatenate([move_data[i + force_len:i + lens], force_data[i + move_len: i + lens + 1]]))
     outs = np.array(outs).astype(np.float32)
@@ -110,9 +125,7 @@ def get_dataset():
     dev_data = np.concatenate(dev_data, axis=0)
     print('get all dev data: ', dev_data.shape)
     # test
-    test_data = []
-    for path in config['dev_path']:
-        test_data.append(trans_numpy_data(f'{path}', config))
+    test_data = [trans_numpy_data(f"{config['test_path']}", config, is_ouhe=True)]
 
     test_data = np.concatenate(test_data, axis=0)
     print('get all test data: ', test_data.shape)
@@ -128,6 +141,22 @@ def get_dataset():
         dev = DataLoader(TransDataset(dev_data), batch_size=len(dev_data))
         test = DataLoader(TransDataset(test_data), batch_size=len(test_data))
         return train, dev, test
+
+
+def get_trans(data):
+    # 输入应该是力
+    if data.shape[1] != 121:
+        print('wrong')
+        return -1
+    else:
+        zscore = []
+        for i in range(121):
+            zscore.append([np.mean([data[:, i]]), np.std([data[:, i]])])
+        # for i in range(121):
+        #     data[:, i] = (data[:, i] - zscore[i][0]) / zscore[i][1]
+        #     plt.plot(data[:, i])
+        #     plt.show()
+        np.save(f"{config['project_path']}datas//static//Z_source.npy", np.array(zscore))
 
 
 def trans_force(data):
@@ -167,6 +196,7 @@ def start(model, train_iter, dev_iter, test_iter):
     test_save_path = f"{config['project_path']}models//save_model//{use_model}_{move_len}_{force_len}_test"
 
     if config['reTrain']:
+        shutil.copyfile(train_save_path, train_save_path + '_base')
         model.load_state_dict(torch.load(train_save_path))
         L1 = 0.2
         L2 = 0.1
@@ -192,26 +222,29 @@ def start(model, train_iter, dev_iter, test_iter):
             model.train()
 
             for i, batch in enumerate(train_iter):
-                inputs, targets = batch[:, :-1], batch[:, -1]
-                inputs = pca(inputs)
-                targets = trans_force(targets)
+                inputs, targets, weight = batch[:, :-2], batch[:, -2], batch[:, -1]
+                if config['Pod']:
+                    inputs = pca(inputs).to(device)
+                targets = trans_force(targets).to(device)
                 outs = model(inputs)
 
                 optimizer.zero_grad()
-                loss = criterion(outs, targets)
+                loss = criterion(outs, targets) * weight.to(device)
+                loss = loss.mean()
                 loss.backward()
                 optimizer.step()
                 loss1 += loss.item()
 
             model.eval()
             for i, batch in enumerate(dev_iter):
-                inputs, targets = batch[:, :-1], batch[:, -1]
+                inputs, targets, weight = batch[:, :-2], batch[:, -2], batch[:, -1]
 
-                inputs = pca(inputs)
-                targets = trans_force(targets)
+                inputs = pca(inputs).to(device)
+                targets = trans_force(targets).to(device)
 
                 outs = model(inputs)
-                loss = criterion(outs, targets)
+                loss = criterion(outs, targets) * weight.to(device)
+                loss = loss.mean()
                 loss2 += loss.item()
 
             if epoch % 10 == 0:
@@ -219,10 +252,10 @@ def start(model, train_iter, dev_iter, test_iter):
 
             if L1 > loss1 / len(train_iter):
                 L1 = loss1
-                torch.save(model.state_dict(), train_save_path)
+                # torch.save(model.state_dict(), train_save_path)
             if L2 > loss2 / len(dev_iter):
                 L2 = loss2
-                torch.save(model.state_dict(), test_save_path)
+                # torch.save(model.state_dict(), test_save_path)
     else:
         criterion = torch.nn.MSELoss()
         if config['Test']['use_model']:
@@ -235,10 +268,17 @@ def start(model, train_iter, dev_iter, test_iter):
         outs = None
         targets = None
         loss = None
-        for i, batch in enumerate(test_iter):
-            inputs, targets = batch[:, :-1], batch[:, -1]
-            inputs = pca(inputs)
-            targets = trans_force(targets)
+        if config['iter'] == 'train':
+            use_iter = train_iter
+        elif config['iter'] == 'dev':
+            use_iter = dev_iter
+        else:
+            use_iter = test_iter
+
+        for i, batch in enumerate(use_iter):
+            inputs, targets, weight = batch[:, :-2], batch[:, -2], batch[:, -1]
+            inputs = pca(inputs).to(device)
+            targets = trans_force(targets).to(device)
             outs = model(inputs)
             loss = criterion(outs, targets)
         print(loss.item())
@@ -258,8 +298,8 @@ def start(model, train_iter, dev_iter, test_iter):
             # plt.plot(inputs[:, -1, 3].detach(), label='m4')
             # plt.plot(old_outs[:, i].detach(), label='outs')
             # plt.plot(old_targets[:, i].detach() * 5700 / 5100, label='targets')
-            plt.plot(t_outs[:, i].detach(), label='t_outs')
-            plt.plot(t_targets[:, i].detach() * 5700 / 5100, label='t_targets')
+            plt.plot(t_outs[:, i].cpu().detach() * 5700 / 5100, label='t_outs')
+            plt.plot(t_targets[:, i].cpu().detach(), label='t_targets')
             # plt.plot(inputs[:, -1, 90], label='Move')
             plt.legend()
             plt.show()

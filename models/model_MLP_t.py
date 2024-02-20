@@ -62,6 +62,8 @@ class Model(nn.Module):
             nn.Sigmoid(),
             nn.Linear(self.hidden_size, self.hidden_size),
             nn.Sigmoid(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.Sigmoid(),
             nn.Linear(self.hidden_size, self.output_size)
         )
         if config['init_weight']:
@@ -72,6 +74,7 @@ class Model(nn.Module):
         inputs = inputs.reshape(b, M * Dim)
         outs = self.net_base(inputs)
         return outs
+
 
 if __name__ == '__main__':
     config = get_config('..//datas//Config//config.yml')

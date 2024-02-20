@@ -6,29 +6,28 @@ Created on 2024/1/17
 
 Purpose：
 """
-import numpy as np
-import torch
+
 import torch.nn as nn
 import torch.nn.init as init
 import random
-from tools.tool import get_config, print_run_time
+from tools.tool import *
 
 
-class LSTM(nn.Module):
+class Model(nn.Module):
 
     @print_run_time
     def __init__(self, config):
-        super(LSTM, self).__init__()
+        super(Model, self).__init__()
 
         seed_num = config['seed_num']
         torch.manual_seed(seed_num)
         random.seed(seed_num)
         self.config = config
-        self.hidden_size = 4
+        self.hidden_size = 50
         self.num_layers = 1
         self.dropout = 0
         self.input_size = 4
-        self.output_size = 1
+        self.output_size = 121
 
         self.lstm = nn.LSTM(self.input_size, self.hidden_size,
                             dropout=config['dropout'],
@@ -52,10 +51,9 @@ class LSTM(nn.Module):
 
 
 if __name__ == '__main__':
-    config = get_config('..//datas//Config//config.yml')
     ne = LSTM(config)
     print(ne)
-    test_data = torch.zeros([10, 30, 4])
+    test_data = torch.zeros([10, 40, 4])
 
     test_outs = ne(test_data)
     print(test_outs.shape)
